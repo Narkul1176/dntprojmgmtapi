@@ -1,0 +1,17 @@
+﻿@model List<ProductViewModel>
+@{
+    ViewData["Title"] = "ProductCardList";
+}
+
+<h1>ProductCardList</h1>
+
+<div class="container">
+    <div class="row">
+    @foreach(var product in Model)
+    {
+        <div class="col-lg-4">
+               <partial name="_ProductInfo" model="product" />
+        </div>
+    }
+    </div>
+</div>

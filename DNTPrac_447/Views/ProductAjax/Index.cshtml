@@ -1,0 +1,49 @@
+﻿@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Index</h1>
+
+<input type="button" value="Refresh" onclick="loadProducts()" />
+<div class="row">
+    <div class="col-lg-6">
+        <table id="tblProduct" class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Product Id</th>
+                    <th>Product Code</th>
+                    <th>Product Name</th>
+                    <th>Product Price</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+    </div>
+</div>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script>
+    function loadProducts(){
+        $.ajax({
+            url:"https://localhost:7009/api/Product/GetAllProducts",
+            type:"GET",
+            success:(resp) =>{
+                var tbl = $('tblProduct > tbody');
+
+                $.each(resp,(key, value)=>{
+                    var tr = $('<tr></tr>');
+                    tr.append('<td>' + value["ProductId"] + '</td>');
+                    tr.append('<td>' + value["ProductCode"] + '</td>');
+                    tr.append('<td>' + value["ProductName"] + '</td>');
+                    tr.append('<td>' + value["ProductPrice"] + '</td>');
+
+                    tr.appendTo(tbl);
+                });
+            },
+            error:(err) =>{
+                console.log(err);
+            }
+        });
+    }
+</script>
