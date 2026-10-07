@@ -15,8 +15,8 @@ env:
   ACR_NAME: ${{ vars.ACR_NAME }}
   ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
   IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-  DOCKERFILE_PATH: ./dntprojmgmtapi/Dockerfile
-  BUILD_CONTEXT: ./dntprojmgmtapi
+  DOCKERFILE_PATH: ./Dockerfile
+  BUILD_CONTEXT: .
 
 jobs:
   build-and-push:
