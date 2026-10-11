@@ -1,31 +1,54 @@
-name: Build and Push Docker Image to ACR
+Complete workflow YAML file for
+# Build the ASP.NET Core Web API Docker Image 
+# push it to ACR
+# Deploy the GIT SHA-tagged image to AKS
 
 on:
   push:
     branches:
       - master
-      - main
-  workflow_dispatch:
 
+  workflow_dispatch:
 permissions:
   contents: read
+#Allows GitHub Actions to request an OIDC token
   id-token: write
 
+# Reusable environments values
 env:
+#ACR settings
   ACR_NAME: ${{ vars.ACR_NAME }}
   ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
   IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+
+#Docker build settings
   DOCKERFILE_PATH: ./Dockerfile
   BUILD_CONTEXT: .
 
+#Azure Kubernetes Service Settings
+AKS_RESOURCE_GROUP: ${{vars.AKS_RESOURCE_GROUP}}
+AKS_CLUSTER_NAME: ${{vars.AKS_CLUSTER_NAME}}
+
+#Kubernetes resource settings
+K8S_NAMESPACE:${{vars.K8S_NAMESPACE}}
+K8S_DEPLOYMENT_NAME:${{vars.K8S_DEPLOYMENT_NAME}}
+K8S_CONTAINER_NAME:${{vars.K8S_CONTAINER_NAME}}
+K8S_SERVICE_NAME:${{vars.K8S_SERVICE_NAME}}
+
 jobs:
+#=================================================================
+#JOB 1: BUILD AND PUSH THE DOCKER IMAGE TO ACR
+#=================================================================
+
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
     steps:
+	#Step 1: Download the repository source code
       - name: Checkout source code
         uses: actions/checkout@v4
 
+	#Step 2: Authenticate GitHub Actions with Azure using OIDC
       - name: Login to Microsoft Azure using OIDC
         uses: azure/login@v3
         with:
@@ -33,6 +56,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
+	#Step 3: Request a temporary ACR access token
       - name: Get temporary ACR access token
         id: acr-token
         shell: bash
@@ -41,7 +65,8 @@ jobs:
           ACR_TOKEN=$(az acr login --name "$ACR_NAME" --expose-token --output tsv --query accessToken)
           echo "::add-mask::$ACR_TOKEN"
           echo "token=$ACR_TOKEN" >> "$GITHUB_OUTPUT"
-
+	
+	#Step 4: Authenticate Docker with ACR
       - name: Login to Azure ACR
         uses: docker/login-action@v4
         with:
@@ -49,10 +74,12 @@ jobs:
           username: 00000000-0000-0000-0000-000000000000
           password: ${{ steps.acr-token.outputs.token }}
 
+	#Step 5: Configure Docker Buildx
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
-      - name: Build and push Docker image
+	#Step 6: Build and push the image with two tags
+	- name: Build and push Docker image
         uses: docker/build-push-action@v7
         with:
           context: ${{ env.BUILD_CONTEXT }}
@@ -61,3 +88,145 @@ jobs:
           tags: |
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+
+jobs:
+#=================================================================
+#JOB 2: DEPLOY THE IMAGE TO AKS
+#=================================================================
+
+name: Deploy Docker Image to AKS
+runs-on:ubuntu-latest
+
+#start only when build-and-push completes successfully
+needs:build-and-push
+
+steps:
+#Step 1: Authenticate with Azure using the same OIDC identity
+-name:Login to Microsoft Azure using OIDC
+uses:azure/login@v3
+ with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+Step 2: Install kubectl and kube login
+-name: Install kubectl and kubelogin
+ shell: bash
+        run: |
+          set -euo pipefail
+	 az aks install-cli
+
+Step 3: Retrieve AKS under credentials
+-name:Get AKS credentials
+shell:bash
+run:
+set -euo pipefail
+az aks get-credentials --resource-group "$AKS_RESOURCE_GROUP" --name "$aks_CLUSTER_NAME" --overwrite-existing
+
+Step 4: Configure kubeconfig to use Azure CLI authentication
+-name:Configure kubelogin
+shell: bash
+        run: |
+          set -euo pipefail
+	kubelogin convert-kubeconfig -l azurecli
+
+Step 5: Verify the connection to the AKS cluster
+-name:Vefiry AKS connection
+shell: bash
+        run: |
+          set -euo pipefail
+	  kubectl get nodes
+	  kubectl get namespace "$K8S_NAMESPACE"
+
+Step 6: Create the complete image reference
+-name:Display image being displayed
+shell: bash
+        run: |
+          set -euo pipefail
+	 FULL_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:${{GitHub.sha}}"
+	echo "Image to deploy:"
+	echo "$FULL_IMAGE"
+
+Step 7: Update the Kubernetes Deployment Image
+-name: Update Kubernetes Deployment Image
+shell: bash
+        run: |
+          set -euo pipefail
+	 FULL_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:${{GitHub.sha}}"
+	kubectl set image deployment/"$K8S_DEPLOYMENT_NAME" "$K8S_CONTAINER_NAME"="$FULL_IMAGE" --namespace "$K8S_NAMESPACE"
+
+Step 8: Wait for the rolling update to complete
+-name:Wait for deployment rollout
+shell: bash
+        run: |
+          set -euo pipefail
+	 kubectl rollout status deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --timeout=5m
+
+Step 9: Verify the image configured in the deployment
+	-name:Verify deployed image
+shell: bash
+run: 
+          set -euo pipefail
+	 EXPECTED_IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:${{GitHub.sha}}"
+	ACTUAL_IMAGE=$(kubectl get deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output jsonpath='{.spec.template.spec.containers[0].image}')
+	echo "Expected image:$EXPECTED_IMAGE"
+	echo "Actual image:$ACTUAL_IMAGE"
+	if["$ACTUAL_IMAGE != "$EXPECTED_IMAGE"]; then
+	echo "The Deployment is not using the expected Docker Image"
+	exit 1
+	fi
+	echo "The Deployment is using the expected Docker Image"
+
+Step 10: Verify the Kubernetes Deployment
+	-name: Verfify Kubernetes Deployment
+shell: bash
+        run: |
+          set -euo pipefail
+	 kubectl get deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output wide
+
+Step 11: Verify the application Pods
+	-name: Verify application Pods
+shell: bash
+        run: |
+          set -euo pipefail
+	 kubectl get pods --namespace "$K8S_NAMESPACE" --selector app=dntmgmtapi --show-labels
+
+Step 12: Verify Replica Sets
+	-name: Verify Replica sets
+shell: bash
+        run: |
+          set -euo pipefail
+	 kubectl get replicasets --namespace "$K8S_NAMESPACE"
+
+Step 13: Verify the LoadBalancer Service
+	-name: Verify Kubernetes Service
+shell: bash
+        run: |
+          set -euo pipefail
+	 kubectl get service "$K8S_SERVICE_NAME" --namespace "$K8S_NAMESPACE" --output wide
+
+	
+
+
+
+
+
+
+
+
+
+
+
+	
+	 
+
+
+
+
+
+
+
+
+
+
+
