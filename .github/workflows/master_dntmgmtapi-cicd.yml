@@ -125,14 +125,6 @@ jobs:
           set -euo pipefail
           kubelogin convert-kubeconfig -l azurecli
 
-      #Step 5: Verify the connection to the AKS cluster
-      - name: Verify AKS connection
-        shell: bash
-        run: |
-          set -euo pipefail
-          kubectl get nodes
-          kubectl get namespace "$K8S_NAMESPACE"
-
       #Step 6: Create the complete image reference
       - name: Display image being deployed
         shell: bash
