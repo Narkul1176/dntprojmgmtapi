@@ -4,7 +4,6 @@ on:
       - master
 
   workflow_dispatch:
-
 permissions:
   contents: read
   #Allows GitHub Actions to request an OIDC token
