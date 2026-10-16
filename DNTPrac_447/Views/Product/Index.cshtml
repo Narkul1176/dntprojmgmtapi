@@ -1,0 +1,19 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>This is Index page</h1>
+
+@{
+    //ProductViewModel product = @ViewBag.prod;
+    ProductViewModel product = ViewData["prod"] as ProductViewModel;
+}
+<p>Product Id : @product.ProductId</p>
+<br />
+<p>Product Code : @product.ProductCode</p>
+<br />
+<p>Product Name : @product.ProductName</p>
+<br />
+<p>Product Price : @product.ProductPrice</p>
+<my-custom str=@product.ProductName></my-custom>

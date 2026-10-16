@@ -1,0 +1,6 @@
+@DNTPracAPI_447_HostAddress = http://localhost:5293
+
+GET {{DNTPracAPI_447_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

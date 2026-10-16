@@ -1,0 +1,11 @@
+﻿@model ProductViewModel
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">@Model.ProductName</h5>
+        <h5 class="card-title">@Model.ProductCode</h5>
+        <vc:product-discount price="Convert.ToInt32(@Model.ProductPrice)"></vc:product-discount>
+        <p class="card-text">Some quick example text to build on the card title and make up the bulk of the card’s content.</p>
+        <a class="btn btn-primary">Buy Now</a>
+        <a class="btn btn-warning">Cancel</a>
+    </div>
+</div>
