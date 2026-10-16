@@ -145,7 +145,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl rollout status deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --timeout=5m
+          kubectl rollout status deployment/"$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --timeout=5m
 
       #Step 9: Verify the image configured in the deployment
       - name: Verify deployed image
