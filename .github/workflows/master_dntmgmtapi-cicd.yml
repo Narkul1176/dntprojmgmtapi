@@ -2,7 +2,9 @@ on:
   push:
     branches:
       - master
+
   workflow_dispatch:
+
 permissions:
   contents: read
   #Allows GitHub Actions to request an OIDC token
@@ -153,7 +155,7 @@ jobs:
         run: |
           set -euo pipefail
           EXPECTED_IMAGE="${{ env.ACR_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-          ACTUAL_IMAGE=$(kubectl get deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output jsonpath='{.spec.template.spec.containers[0].image}')
+          ACTUAL_IMAGE=$(kubectl get deployment/"$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output jsonpath='{.spec.template.spec.containers[0].image}')
           echo "Expected image: $EXPECTED_IMAGE"
           echo "Actual image: $ACTUAL_IMAGE"
           if [ "$ACTUAL_IMAGE" != "$EXPECTED_IMAGE" ]; then
@@ -167,7 +169,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl get deployment "$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output wide
+          kubectl get deployment/"$K8S_DEPLOYMENT_NAME" --namespace "$K8S_NAMESPACE" --output wide
 
       #Step 11: Verify the application Pods
       - name: Verify application Pods
